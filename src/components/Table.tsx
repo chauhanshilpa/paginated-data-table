@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import {
   DataTable,
   DataTableStateEvent,
-  DataTableSelectionSingleChangeEvent,
   DataTableSelectAllChangeEvent,
 } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -20,6 +19,7 @@ const columns = [
   { field: "date_start", header: "Date_start" },
   { field: "date_end", header: "Date_end" },
 ];
+const DEFAULT_NUM_ROWS = 12;
 
 interface Product {
   id: number;
@@ -39,7 +39,7 @@ const Table = () => {
   const [selectAll, setSelectAll] = useState<boolean>(false);
   const [lazyState, setlazyState] = useState({
     first: 0,
-    rows: 12,
+    rows: DEFAULT_NUM_ROWS,
     page: 0,
   });
   const productsRef = useRef<Product[]>([]);
@@ -52,6 +52,7 @@ const Table = () => {
       await loadLazyData();
       manualSelection();
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lazyState]);
 
   const loadLazyData = async () => {
@@ -81,19 +82,17 @@ const Table = () => {
     });
   };
 
-  const onSelectionChange = (
-    event: DataTableSelectionSingleChangeEvent<Product[]>
-  ) => {
+  const onSelectionChange = (event: { value: Product[] }) => {
     const value = event.value;
     const currentPage = lazyState.page;
-    const tempSet = new Set();
+    const tempSet: Set<number> = new Set();
     for (const row of value) {
       const rowNumber = productIdToRowNumMappingRef.current[row.id];
       tempSet.add(rowNumber);
     }
     pageRowMappingRef.current[currentPage] = tempSet;
     manualSelection();
-    setSelectAll(value.length === totalRecords);
+    setSelectAll(value.length === DEFAULT_NUM_ROWS);
   };
 
   const onSelectAllChange = (event: DataTableSelectAllChangeEvent) => {
@@ -102,7 +101,7 @@ const Table = () => {
     if (selectAll) {
       setSelectAll(true);
       pageRowMappingRef.current[currentPage] = new Set(
-        Array.from(Array(12).keys())
+        Array.from(Array(DEFAULT_NUM_ROWS).keys())
       );
     } else {
       setSelectAll(false);
@@ -117,16 +116,15 @@ const Table = () => {
       return;
     }
     let rowsToSelect = inputNumber;
-    const tempPageRowMappingRef = pageRowMappingRef;
     let page = lazyState.page;
     while (rowsToSelect > 0) {
-      const productRows = new Set();
-      for (let i = 0; i < Math.min(12, rowsToSelect); i++) {
+      const productRows: Set<number> = pageRowMappingRef.current[page] || new Set();
+      for (let i = 0; i < Math.min(DEFAULT_NUM_ROWS, rowsToSelect); i++) {
         productRows.add(i);
       }
       pageRowMappingRef.current[page] = productRows;
       page++;
-      rowsToSelect -= 12;
+      rowsToSelect -= DEFAULT_NUM_ROWS;
     }
     manualSelection();
     setInputValue("");
@@ -142,6 +140,7 @@ const Table = () => {
       }
       setSelectedProducts([...value]);
     }
+    setSelectAll(value.length === DEFAULT_NUM_ROWS);
   }
 
   return (
@@ -150,16 +149,15 @@ const Table = () => {
         value={productsRef.current}
         tableStyle={{ minWidth: "50rem" }}
         paginator
-        rows={12}
+        rows={DEFAULT_NUM_ROWS}
         lazy
-        // filterDisplay="row"
         dataKey="id"
         first={lazyState.first}
         totalRecords={totalRecords}
         onPage={onPage}
         loading={loading}
         selectAll={selectAll}
-        // selectionMode={rowClick ? null : "checkbox"}
+        selectionMode={onclick ? null : "checkbox"}
         onSelectAllChange={onSelectAllChange}
         selection={selectedProducts}
         onSelectionChange={onSelectionChange}
@@ -172,7 +170,7 @@ const Table = () => {
           header={
             <FaChevronDown
               style={{ cursor: "pointer" }}
-              onClick={(e) => overlayPanel.current.toggle(e)}
+              onClick={(e) => overlayPanel.current?.toggle(e)}
             />
           }
         />
@@ -185,7 +183,7 @@ const Table = () => {
           <InputText
             keyfilter="int"
             placeholder="Select rows..."
-            value={inputValue}
+            value={inputValue.toString()}
             onChange={(event) => setInputValue(event.target.value)}
           />
           <Button
