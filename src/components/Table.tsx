@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { DataTable } from "primereact/datatable";
+import {
+  DataTable,
+  DataTableStateEvent,
+  DataTableSelectionSingleChangeEvent,
+  DataTableSelectAllChangeEvent,
+} from "primereact/datatable";
 import { Column } from "primereact/column";
 import axios from "axios";
 import { FaChevronDown } from "react-icons/fa6";
 import { OverlayPanel } from "primereact/overlaypanel";
+import { InputText } from "primereact/inputtext";
+import { Button } from "primereact/button";
 
 const columns = [
   { field: "title", header: "Title" },
@@ -15,6 +22,7 @@ const columns = [
 ];
 
 interface Product {
+  id: number;
   title: string;
   place_of_origin: string;
   artist_display: string;
@@ -24,24 +32,26 @@ interface Product {
 }
 
 const Table = () => {
-  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
-  const [numberOfPagesToSelect, setNumberOfPagesToSelect] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [totalRecords, setTotalRecords] = useState(0);
-  const [selectAll, setSelectAll] = useState(false);
+  const [inputValue, setInputValue] = useState<string | number>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
+  const [selectAll, setSelectAll] = useState<boolean>(false);
   const [lazyState, setlazyState] = useState({
     first: 0,
-    rows: 10,
+    rows: 12,
     page: 0,
   });
-  const [selectedPageRowMapping, setSelectedPageRowMapping] = useState({});
-
-  const overlayPanel = useRef(null);
+  const productsRef = useRef<Product[]>([]);
+  const pageRowMappingRef = useRef<{ [key: number]: Set<number> }>({});
+  const productIdToRowNumMappingRef = useRef<{ [key: string]: number }>({});
+  const overlayPanel = useRef<OverlayPanel>(null);
 
   useEffect(() => {
-    loadLazyData();
-    manualSelection();
+    (async function () {
+      await loadLazyData();
+      manualSelection();
+    })();
   }, [lazyState]);
 
   const loadLazyData = async () => {
@@ -51,69 +61,93 @@ const Table = () => {
         `https://api.artic.edu/api/v1/artworks?page=${lazyState.page + 1}`
       );
       setTotalRecords(productResponse.data.pagination.total);
-      setProducts(productResponse.data.data);
+      productsRef.current = productResponse.data.data;
+      const tempObj: { [key: string]: number } = {};
+      for (let i = 0; i < productsRef.current.length; i++) {
+        const item = productsRef.current[i];
+        tempObj[item.id] = i;
+      }
+      productIdToRowNumMappingRef.current = { ...tempObj };
     } catch (error) {
       console.error(error);
     }
     setLoading(false);
   };
 
-  const onPage = (event) => {
-    setlazyState(event);
+  const onPage = (event: DataTableStateEvent) => {
+    setlazyState({
+      ...event,
+      page: event.page ?? 0,
+    });
   };
 
-  const onSelectionChange = (event) => {
+  const onSelectionChange = (
+    event: DataTableSelectionSingleChangeEvent<Product[]>
+  ) => {
     const value = event.value;
-    setSelectedProducts(value);
+    const currentPage = lazyState.page;
+    const tempSet = new Set();
+    for (const row of value) {
+      const rowNumber = productIdToRowNumMappingRef.current[row.id];
+      tempSet.add(rowNumber);
+    }
+    pageRowMappingRef.current[currentPage] = tempSet;
+    manualSelection();
     setSelectAll(value.length === totalRecords);
   };
 
-  const onSelectAllChange = (event) => {
+  const onSelectAllChange = (event: DataTableSelectAllChangeEvent) => {
     const selectAll = event.checked;
+    const currentPage = lazyState.page;
     if (selectAll) {
       setSelectAll(true);
-      setSelectedProducts(products);
+      pageRowMappingRef.current[currentPage] = new Set(
+        Array.from(Array(12).keys())
+      );
     } else {
       setSelectAll(false);
-      setSelectedProducts([]);
+      pageRowMappingRef.current[currentPage] = new Set();
     }
+    manualSelection();
   };
 
   function onManualSelectionClick() {
-    let intergerValueOfnumberOfPagesToSelect = Number(numberOfPagesToSelect);
-    if (
-      intergerValueOfnumberOfPagesToSelect <= 0 ||
-      isNaN(Number(intergerValueOfnumberOfPagesToSelect))
-    ) {
+    const inputNumber = Number(inputValue);
+    if (inputNumber <= 0 || isNaN(inputNumber)) {
       return;
     }
-    let currPage = lazyState.page;
-    const tempSelectedRowMapping = { ...selectedPageRowMapping };
-    while (intergerValueOfnumberOfPagesToSelect > 0) {
-      tempSelectedRowMapping[currPage] = Math.min(
-        12,
-        intergerValueOfnumberOfPagesToSelect
-      );
-      intergerValueOfnumberOfPagesToSelect -= tempSelectedRowMapping[currPage];
-      currPage++;
+    let rowsToSelect = inputNumber;
+    const tempPageRowMappingRef = pageRowMappingRef;
+    let page = lazyState.page;
+    while (rowsToSelect > 0) {
+      const productRows = new Set();
+      for (let i = 0; i < Math.min(12, rowsToSelect); i++) {
+        productRows.add(i);
+      }
+      pageRowMappingRef.current[page] = productRows;
+      page++;
+      rowsToSelect -= 12;
     }
-    setSelectedPageRowMapping({ ...tempSelectedRowMapping });
     manualSelection();
+    setInputValue("");
   }
 
   function manualSelection() {
     const value = [];
-    for (let i = 0; i < selectedPageRowMapping[lazyState.page]; i++) {
-      value.push(products[i]);
+    const currentPage = lazyState.page;
+    const rows = pageRowMappingRef.current[currentPage];
+    if (rows !== undefined) {
+      for (const rowNumber of rows) {
+        value.push(productsRef.current[rowNumber]);
+      }
+      setSelectedProducts([...value]);
     }
-    console.log(value)
-    setSelectedProducts(value);
   }
 
   return (
     <>
       <DataTable
-        value={products}
+        value={productsRef.current}
         tableStyle={{ minWidth: "50rem" }}
         paginator
         rows={12}
@@ -148,28 +182,24 @@ const Table = () => {
       </DataTable>
       <OverlayPanel ref={overlayPanel} style={{ marginTop: "2.8rem" }}>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <input
-            type="number"
-            value={numberOfPagesToSelect}
+          <InputText
+            keyfilter="int"
             placeholder="Select rows..."
-            style={{
-              padding: "5px",
-              border: "1px solid black",
-              borderRadius: "5px",
-            }}
-            onChange={(event) => setNumberOfPagesToSelect(event.target.value)}
+            value={inputValue}
+            onChange={(event) => setInputValue(event.target.value)}
           />
-          <button
+          <Button
+            label="Submit"
+            onClick={onManualSelectionClick}
             style={{
               marginTop: "1rem",
+              width: "50%",
+              alignSelf: "end",
+              backgroundColor: "white",
               border: "1px solid black",
-              padding: "5px",
-              borderRadius: "5px",
+              color: "black",
             }}
-            onClick={onManualSelectionClick}
-          >
-            Submit
-          </button>
+          />
         </div>
       </OverlayPanel>
     </>
