@@ -5,6 +5,7 @@
   - [TechStack](#techstack)
 
 ## Introduction
+<img width="960" alt="Screenshot 2024-09-15 235836" src="https://github.com/user-attachments/assets/d62a1160-4c4f-4dde-b1e0-3ed25a4ff07e">
 
 This is an implementation example of using Prime React DataTable to render data fetched from an API. The application uses a custom logic for row selection.
 
