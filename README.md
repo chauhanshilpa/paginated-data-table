@@ -1,50 +1,26 @@
-# React + TypeScript + Vite
+# Paginated-Data-Table
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+- [Paginated-Data-Table](#paginated-data-table)
+  - [Introduction](#introduction)
+  - [TechStack](#techstack)
 
-Currently, two official plugins are available:
+## Introduction
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+This is an implementation example of using Prime React DataTable to render data fetched from an API. The application uses a custom logic for row selection.
 
-## Expanding the ESLint configuration
+Salient Features:
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+1. Pagination of API data with each page showing maximum of 12 rows.
+2. Data is lazily loaded on each page by making call to server and not kept in memory on page change.
+3. Users can select rows in 3 ways:
+   - Users can direct use checkbox on each row to select/unselect.
+   - Users can use Select All checkbox on top of the page to select/unselect all rows on the same page.
+   - Users can use a custom selection panel on top left of the page to input number of rows to select starting from current page.
+4. User's row selections/de-selections are maintained on page change.
 
-- Configure the top-level `parserOptions` property like this:
+The website is hosted on Netlify and can be accessed [https://paginated-data-table.netlify.app/](https://paginated-data-table.netlify.app/).
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+## TechStack
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+- Library: ReactJS with TypeScript built using Vite.
+- Used [React Icons](https://react-icons.github.io/react-icons/) for Chevron icon.

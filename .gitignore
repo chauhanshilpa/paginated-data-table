@@ -22,3 +22,6 @@ yarn-error.log*
 
 .vscode/
 .history/
+dist/
+tsconfig.app.tsbuildinfo
+tsconfig.node.tsbuildinfo
